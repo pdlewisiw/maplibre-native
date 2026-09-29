@@ -1,0 +1,28 @@
+name: RL9 MapLibre addon spike
+
+# Private builder: only trusted pushes to this development branch.
+# Do not run pull_request code on this runner.
+on:
+  push:
+    branches: [rl9-dev]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64, private-builder, el9]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Show builder capacity
+        run: |
+          df -h . /tmp
+          podman info --format '{{.Store.GraphRoot}}'
+      - name: Build Rocky 9 native addon
+        run: |
+          podman build --pull=missing \
+            --file spikes/001-el9-node-addon/Containerfile \
+            --tag localhost/maplibre-addon:rl9-spike .
