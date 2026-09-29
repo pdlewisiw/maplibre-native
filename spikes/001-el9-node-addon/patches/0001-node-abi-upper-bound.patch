@@ -1,0 +1,28 @@
+diff --git a/platform/node/cmake/module.cmake b/platform/node/cmake/module.cmake
+index 36450cc4a65d..341e03ae8f50 100644
+--- a/platform/node/cmake/module.cmake
++++ b/platform/node/cmake/module.cmake
+@@ -51,10 +51,13 @@ endfunction()
+ 
+ 
+ function(add_node_module NAME)
+-    cmake_parse_arguments("" "" "MINIMUM_NODE_ABI;NAN_VERSION;INSTALL_PATH;CACHE_DIR" "EXCLUDE_NODE_ABIS" ${ARGN})
++    cmake_parse_arguments("" "" "MINIMUM_NODE_ABI;MAXIMUM_NODE_ABI;NAN_VERSION;INSTALL_PATH;CACHE_DIR" "EXCLUDE_NODE_ABIS" ${ARGN})
+     if(NOT _MINIMUM_NODE_ABI)
+         set(_MINIMUM_NODE_ABI "${NODE_MODULE_MINIMUM_ABI}")
+     endif()
++    if(NOT _MAXIMUM_NODE_ABI AND DEFINED NODE_MODULE_MAXIMUM_ABI AND NOT "${NODE_MODULE_MAXIMUM_ABI}" STREQUAL "")
++        set(_MAXIMUM_NODE_ABI "${NODE_MODULE_MAXIMUM_ABI}")
++    endif()
+     if (NOT _CACHE_DIR)
+         set(_CACHE_DIR "${NODE_MODULE_CACHE_DIR}")
+     endif()
+@@ -86,7 +89,7 @@ function(add_node_module NAME)
+         string(REGEX MATCHALL "[^\t]*\t" _COLUMNS "${_LINE}")
+         list(GET _COLUMNS 8 _ABI)
+         string(STRIP "${_ABI}" _ABI)
+-        if((_ABI GREATER _MINIMUM_NODE_ABI OR _ABI EQUAL _MINIMUM_NODE_ABI) AND NOT _ABI IN_LIST _EXCLUDE_NODE_ABIS AND NOT DEFINED _NODE_ABI_${_ABI}_VERSION)
++        if((_ABI GREATER _MINIMUM_NODE_ABI OR _ABI EQUAL _MINIMUM_NODE_ABI) AND (NOT _MAXIMUM_NODE_ABI OR NOT _ABI GREATER _MAXIMUM_NODE_ABI) AND NOT _ABI IN_LIST _EXCLUDE_NODE_ABIS AND NOT DEFINED _NODE_ABI_${_ABI}_VERSION)
+             list(APPEND _ABIS ${_ABI})
+             list(GET _COLUMNS 0 _VERSION)
+             string(STRIP "${_VERSION}" _NODE_ABI_${_ABI}_VERSION)
