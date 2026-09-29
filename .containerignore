@@ -1,0 +1,7 @@
+# Keep versioned source and pinned submodules; do not copy the Git object store.
+.git
+**/.git
+build
+**/build
+node_modules
+**/node_modules

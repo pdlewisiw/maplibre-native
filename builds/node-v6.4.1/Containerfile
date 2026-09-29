@@ -1,0 +1,50 @@
+# Version-pinned Node 6.4.1 addon builder for Rocky Linux 9 and 10.
+# Build separately per distro; never reuse an addon in another distro's runtime.
+# This is a builder-only image, not a TileServer runtime.
+ARG BASE_IMAGE=docker.io/rockylinux/rockylinux:9.8
+ARG MAX_NODE_ABI=137
+ARG BUILD_JOBS=2
+FROM ${BASE_IMAGE} AS builder
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /src
+ARG MAX_NODE_ABI
+ARG BUILD_JOBS
+
+# Match the upstream Linux Node build's required capabilities with EL9 package names.
+# The first build is deliberately allowed to expose unavailable/misnamed EL packages.
+RUN dnf install -y --setopt=install_weak_deps=False dnf-plugins-core \
+    && dnf config-manager --set-enabled crb \
+    && dnf install -y --setopt=install_weak_deps=False \
+      clang \
+      cmake \
+      gcc \
+      gcc-c++ \
+      git \
+      libcurl-devel \
+      libicu-devel \
+      libjpeg-turbo-devel \
+      libpng-devel \
+      libuv-devel \
+      libwebp-devel \
+      libX11-devel \
+      mesa-libGL-devel \
+      ninja-build \
+      pkgconf-pkg-config \
+      tar \
+      which \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
+
+COPY . /src
+
+# The upstream preset is Linux-generic; it builds the Node addon for its supported Node ABIs.
+# GLFW is upstream's interactive test/demo platform; server-side Node rendering does not require it.
+RUN cmake --preset linux-opengl-node -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER= -DMLN_WITH_GLFW=OFF -DNODE_MODULE_MAXIMUM_ABI="${MAX_NODE_ABI}" \
+    && cmake --build build --target mbgl-node.abi-115 mbgl-node.abi-127 mbgl-node.abi-137 -j "${BUILD_JOBS}" \
+    && find platform/node/lib -type f -name mbgl.node -print \
+    && for addon in platform/node/lib/node-v*/mbgl.node; do \
+         test -f "$addon"; \
+         echo "=== $addon ==="; \
+         ldd "$addon"; \
+       done

@@ -1,0 +1,30 @@
+# Build separately with ubuntu:24.04, ubuntu:26.04, debian:12 and debian:13.
+# Source context must be the MapLibre Native node-v6.4.1 worktree with pinned submodules.
+ARG BASE_IMAGE=docker.io/library/ubuntu:24.04
+ARG BUILD_JOBS=2
+FROM ${BASE_IMAGE} AS deps
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /src
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates clang cmake curl g++ git libcurl4-openssl-dev \
+      libgl-dev libgles-dev libopengl-dev libicu-dev libjpeg-dev libpng-dev libuv1-dev \
+      libwebp-dev libx11-dev ninja-build pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+FROM deps AS builder
+ARG BUILD_JOBS
+COPY . /src
+RUN cmake --preset linux-opengl-node -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_CXX_COMPILER_LAUNCHER= -DMLN_WITH_GLFW=OFF \
+      -DNODE_MODULE_MAXIMUM_ABI=137 \
+    && cmake --build build --target mbgl-node.abi-115 mbgl-node.abi-127 mbgl-node.abi-137 -j "${BUILD_JOBS}" \
+    && for abi in 115 127 137; do \
+         addon="platform/node/lib/node-v${abi}/mbgl.node"; \
+         test -f "$addon"; \
+         echo "=== $addon ==="; \
+         ldd "$addon"; \
+         ! ldd "$addon" | grep -q 'not found'; \
+       done
