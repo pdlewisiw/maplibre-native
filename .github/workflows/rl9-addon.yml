@@ -1,4 +1,4 @@
-name: RL9 MapLibre addon spike
+name: Rocky 9 and 10 MapLibre addon spike
 
 # Private builder: only trusted pushes to this development branch.
 # Do not run pull_request code on this runner.
@@ -10,9 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-and-test:
+    # Both EL versions are built/tested in their own containers on this one trusted runner.
     runs-on: [self-hosted, Linux, X64, private-builder, el9, maplibre-ghbuilder-03]
-    timeout-minutes: 180
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,8 +22,43 @@ jobs:
         run: |
           df -h . /tmp
           podman info --format '{{.Store.GraphRoot}}'
-      - name: Build Rocky 9 native addon
+      - name: Compile Rocky 9 native addon
         run: |
-          podman build --pull=missing \
+          podman build --pull=missing --target builder \
+            --build-arg BASE_IMAGE=docker.io/rockylinux/rockylinux:9.8 \
             --file spikes/001-el9-node-addon/Containerfile \
-            --tag localhost/maplibre-addon:rl9-spike .
+            --tag "localhost/maplibre-addon:rl9-${GITHUB_SHA}" .
+      - name: Compile Rocky 10 native addon
+        run: |
+          podman build --pull=missing --target builder \
+            --build-arg BASE_IMAGE=docker.io/rockylinux/rockylinux:10.2 \
+            --file spikes/001-el9-node-addon/Containerfile \
+            --tag "localhost/maplibre-addon:rl10-${GITHUB_SHA}" .
+      - name: Prepare Rocky 9 test image
+        run: |
+          podman build --pull=missing --target test \
+            --build-arg BASE_IMAGE=docker.io/rockylinux/rockylinux:9.8 \
+            --file spikes/001-el9-node-addon/Containerfile \
+            --tag "localhost/maplibre-addon-test:rl9-${GITHUB_SHA}" .
+      - name: Prepare Rocky 10 test image
+        run: |
+          podman build --pull=missing --target test \
+            --build-arg BASE_IMAGE=docker.io/rockylinux/rockylinux:10.2 \
+            --file spikes/001-el9-node-addon/Containerfile \
+            --tag "localhost/maplibre-addon-test:rl10-${GITHUB_SHA}" .
+      - name: Smoke test Rocky 9 (Node load, linkage, render)
+        run: |
+          podman run --rm "localhost/maplibre-addon-test:rl9-${GITHUB_SHA}" \
+            bash /src/spikes/001-el9-node-addon/test-in-container.sh 9 smoke
+      - name: Smoke test Rocky 10 (Node load, linkage, render)
+        run: |
+          podman run --rm "localhost/maplibre-addon-test:rl10-${GITHUB_SHA}" \
+            bash /src/spikes/001-el9-node-addon/test-in-container.sh 10 smoke
+      - name: Full Node suite Rocky 9
+        run: |
+          podman run --rm "localhost/maplibre-addon-test:rl9-${GITHUB_SHA}" \
+            bash /src/spikes/001-el9-node-addon/test-in-container.sh 9 full
+      - name: Full Node suite Rocky 10
+        run: |
+          podman run --rm "localhost/maplibre-addon-test:rl10-${GITHUB_SHA}" \
+            bash /src/spikes/001-el9-node-addon/test-in-container.sh 10 full
