@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64, private-builder, el9]
+    runs-on: [self-hosted, Linux, X64, private-builder, el9, maplibre-ghbuilder-03]
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
