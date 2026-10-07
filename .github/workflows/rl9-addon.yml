@@ -62,3 +62,13 @@ jobs:
         run: |
           podman run --rm "localhost/maplibre-addon-test:rl10-${GITHUB_SHA}" \
             bash /src/spikes/001-el9-node-addon/test-in-container.sh 10 full
+      - name: Export checksummed EL addon bundles
+        id: export
+        run: bash spikes/001-el9-node-addon/export-addons.sh
+      - name: Upload EL addon bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: maplibre-node-${{ steps.export.outputs.build_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
