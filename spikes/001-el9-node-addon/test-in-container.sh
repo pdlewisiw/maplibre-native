@@ -29,19 +29,20 @@ elif [[ "$stage" != full ]]; then
     exit 2
 fi
 
-Xvfb :99 -screen 0 1024x768x24 -nolisten tcp > /tmp/xvfb.log 2>&1 &
-xvfb_pid=$!
-trap 'kill "$xvfb_pid" 2>/dev/null || :' EXIT
-for attempt in 1 2 3 4 5 6 7 8 9 10; do
-    [[ -S /tmp/.X11-unix/X99 ]] && break
-    sleep 1
-done
-[[ -S /tmp/.X11-unix/X99 ]] || { printf 'Xvfb failed to start\n' >&2; exit 1; }
-export DISPLAY=:99
+if command -v xwfb-run >/dev/null 2>&1; then
+    # xwayland-run's default compositor is mutter; our test image installs Weston.
+    headless_runner=(xwfb-run -c weston)
+elif command -v xvfb-run >/dev/null 2>&1; then
+    headless_runner=(xvfb-run --auto-servernum)
+else
+    printf 'Neither xwfb-run nor xvfb-run is available\n' >&2
+    exit 1
+fi
 
 if [[ "$stage" == smoke ]]; then
-    timeout 60s node /src/spikes/001-el9-node-addon/smoke.js
+    timeout 60s "${headless_runner[@]}" node /src/spikes/001-el9-node-addon/smoke.cjs
 else
     cd /src/platform/node
-    timeout 30m script -q -e -c 'npm test' /dev/null
+    printf -v test_command '%q ' "${headless_runner[@]}" npm test
+    timeout 30m script -q -e -c "$test_command" /dev/null
 fi

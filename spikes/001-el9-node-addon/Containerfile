@@ -52,7 +52,12 @@ RUN cmake --preset linux-opengl-node -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMP
 FROM builder AS test
 ARG NODE_VERSION=22.23.1
 ARG NODE_SHA256=7a8cb04b4a1df4eaf432125324b81b29a088e73570a23259a8de1c65d07fc129
-RUN dnf install -y --setopt=install_weak_deps=False xorg-x11-server-Xvfb \
+RUN if dnf -q list --available xwayland-run >/dev/null 2>&1; then \
+         dnf install -y --setopt=install_weak_deps=False epel-release \
+         && dnf install -y --setopt=install_weak_deps=False xwayland-run xorg-x11-server-Xwayland weston; \
+    else \
+         dnf install -y --setopt=install_weak_deps=False xorg-x11-server-Xvfb; \
+    fi \
     && mkdir -p /opt/node \
     && curl --fail --location --retry 4 --output /tmp/node.tar.gz \
          "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
