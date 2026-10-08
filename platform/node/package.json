@@ -11,7 +11,8 @@
   },
   "files": [
     "lib",
-    "index.d.ts"
+    "index.d.ts",
+    "scripts/install-native.js"
   ],
   "main": "index.js",
   "types": "index.d.ts",
@@ -54,7 +55,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "install": "node-pre-gyp install --fallback-to-build=false",
+    "install": "node scripts/install-native.js",
     "test": "tape test/js/**/*.test.js",
     "test-memory": "node --expose-gc test/memory.test.js",
     "test-expressions": "node -r esm test/expression.test.js",
