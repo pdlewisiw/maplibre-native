@@ -23,10 +23,9 @@ brew install \
   libuv
 ```
 
-#### Linux (Debian and Ubuntu)
+#### Linux (Ubuntu 24.04+)
 
 ```bash
-sudo apt-get update
 sudo apt-get install -y \
   build-essential \
   clang \
@@ -39,36 +38,72 @@ sudo apt-get install -y \
   libuv1-dev \
   libpng-dev \
   libicu-dev \
-  libjpeg-dev \
+  libjpeg-turbo8-dev \
   libwebp-dev \
-  libx11-dev \
-  libgl-dev \
+  xwayland-run \
   xvfb
-if [ -x /usr/sbin/update-ccache-symlinks ]; then
-  sudo /usr/sbin/update-ccache-symlinks
-fi
+/usr/sbin/update-ccache-symlinks
 ```
 
-`libjpeg-dev` is the distribution's development-package name; the underlying JPEG
-implementation can vary. Package names for other Linux families are not interchangeable.
+`xwayland-run` provides `xwfb-run`, the preferred headless test wrapper. `xvfb`
+remains installed for compatibility with existing `xvfb-run` workflows.
 
-#### Linux (Rocky Linux 9 and 10)
-
-Enable Rocky's CRB development repository before installing build dependencies:
+#### Linux (Debian 13)
 
 ```bash
-sudo dnf install -y dnf-plugins-core
-sudo dnf config-manager --set-enabled crb
-sudo dnf install -y \
-  clang cmake gcc gcc-c++ git ninja-build pkgconf-pkg-config \
-  libcurl-devel libicu-devel libjpeg-turbo-devel libpng-devel \
-  libuv-devel libwebp-devel libX11-devel mesa-libGL-devel
+sudo apt-get install -y \
+  build-essential \
+  ca-certificates \
+  clang \
+  cmake \
+  ccache \
+  ninja-build \
+  pkg-config \
+  libcurl4-openssl-dev \
+  libglfw3-dev \
+  libuv1-dev \
+  libpng-dev \
+  libicu-dev \
+  libjpeg62-turbo-dev \
+  libwebp-dev \
+  xwayland-run \
+  xvfb
 ```
 
-Other Enterprise Linux derivatives may name or enable their development repositories
-differently; check their package sources rather than assuming the Rocky commands apply.
-Install a headless display runner separately when running the Node tests; it is not
-required to compile the addon.
+#### Linux (Enterprise Linux 9 / 10)
+
+Rocky Linux 9 and 10 are representative Enterprise Linux distributions. Enable
+the Rocky CRB repository before installing build dependencies:
+
+```bash
+sudo dnf install -y dnf-plugins-core epel-release
+sudo dnf config-manager --set-enabled crb
+```
+
+```bash
+sudo dnf install -y \
+  gcc \
+  gcc-c++ \
+  ca-certificates \
+  clang \
+  cmake \
+  ccache \
+  git \
+  ninja-build \
+  pkgconf-pkg-config \
+  libcurl-devel \
+  libuv-devel \
+  libpng-devel \
+  libicu-devel \
+  libjpeg-turbo-devel \
+  libwebp-devel \
+  libX11-devel \
+  mesa-libGL-devel \
+  xwayland-run
+```
+
+Other Enterprise Linux distributions may use different repository configuration
+procedures.
 
 ### Compiling
 
@@ -82,19 +117,11 @@ cmake . -B build -G Ninja -DMLN_WITH_NODE=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccach
 
 #### Linux
 
-For a server-side Node addon build without GLFW, use the existing Linux Node preset.
-It selects `clang`/`clang++` (included in the package lists above) without
-hard-coding a compiler version; the launcher override allows building without
-`ccache` if that optional tool is not installed:
+Use the system-default C and C++ compilers:
 
 ```bash
-cmake --preset linux-opengl-node -DMLN_WITH_GLFW=OFF -DCMAKE_CXX_COMPILER_LAUNCHER=
+cmake . -B build -G Ninja -DMLN_WITH_NODE=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=Release
 ```
-
-Keep `MLN_WITH_GLFW` enabled if building the GLFW example targets. To use `ccache`,
-omit the empty launcher override. On all Linux distributions, CMake still requires
-the development libraries listed above; this option does not change the JPEG, ICU,
-or OpenGL dependencies of the addon.
 
 ### Building
 
@@ -109,6 +136,13 @@ To test the Node.js bindings:
 
 ```bash
 npm test
+```
+
+On Ubuntu 24.04+, Debian 13, or Enterprise Linux 9/10, `xwayland-run` provides
+`xwfb-run` for headless tests:
+
+```bash
+xwfb-run -- npm test
 ```
 
 ## Merging your pull request
