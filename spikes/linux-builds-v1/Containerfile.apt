@@ -1,0 +1,34 @@
+# APT-family build recipe for Debian and Ubuntu reference images.
+# Override BASE_IMAGE for a derivative source build after enabling its dev repos.
+ARG BASE_IMAGE=docker.io/library/debian:13
+ARG BUILD_JOBS=4
+FROM ${BASE_IMAGE} AS builder
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /src
+ARG BUILD_JOBS
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates clang cmake curl g++ git libcurl4-openssl-dev libicu-dev \
+      libjpeg-dev libpng-dev libuv1-dev libwebp-dev libx11-dev libgl-dev \
+      libgles-dev libopengl-dev ninja-build pkg-config tar \
+    && rm -rf /var/lib/apt/lists/*
+COPY . /src
+RUN cmake --preset linux-opengl-node -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_CXX_COMPILER_LAUNCHER= -DMLN_WITH_GLFW=OFF -DNODE_MODULE_MAXIMUM_ABI=137 \
+    && cmake --build build --target mbgl-node.abi-127 mbgl-node.abi-131 mbgl-node.abi-137 -j "${BUILD_JOBS}" \
+    && for abi in 127 131 137; do \
+         addon="platform/node/lib/node-v${abi}/mbgl.node"; \
+         test -s "$addon"; \
+         echo "=== $addon ==="; \
+         ldd "$addon"; \
+         ! ldd "$addon" | grep -q 'not found'; \
+       done
+
+FROM builder AS test
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      xvfb xauth libgl1-mesa-dri util-linux \
+    && rm -rf /var/lib/apt/lists/* \
+    && bash /src/spikes/linux-builds-v1/install-nodes.sh
+ENV PATH="/opt/node-v127/bin:${PATH}"
+RUN cd /src/platform/node && npm ci --ignore-scripts

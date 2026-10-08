@@ -1,0 +1,7 @@
+# Keep source and pinned vendor submodules; omit checkout metadata from the OCI context.
+.git
+**/.git
+build
+**/build
+node_modules
+**/node_modules

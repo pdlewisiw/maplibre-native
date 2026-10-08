@@ -1,0 +1,37 @@
+[
+  {
+    "target": "el9",
+    "base_image": "docker.io/rockylinux/rockylinux:9.8",
+    "containerfile": "spikes/linux-builds-v1/Containerfile.el",
+    "os_id": "rocky",
+    "version": "9"
+  },
+  {
+    "target": "el10",
+    "base_image": "docker.io/rockylinux/rockylinux:10.2",
+    "containerfile": "spikes/linux-builds-v1/Containerfile.el",
+    "os_id": "rocky",
+    "version": "10"
+  },
+  {
+    "target": "deb13",
+    "base_image": "docker.io/library/debian:13",
+    "containerfile": "spikes/linux-builds-v1/Containerfile.apt",
+    "os_id": "debian",
+    "version": "13"
+  },
+  {
+    "target": "ubuntu2404",
+    "base_image": "docker.io/library/ubuntu:24.04",
+    "containerfile": "spikes/linux-builds-v1/Containerfile.apt",
+    "os_id": "ubuntu",
+    "version": "24.04"
+  },
+  {
+    "target": "ubuntu2604",
+    "base_image": "docker.io/library/ubuntu:26.04",
+    "containerfile": "spikes/linux-builds-v1/Containerfile.apt",
+    "os_id": "ubuntu",
+    "version": "26.04"
+  }
+]
