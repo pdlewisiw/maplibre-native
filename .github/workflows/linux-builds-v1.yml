@@ -1,0 +1,99 @@
+name: Linux Node addon builds v1
+
+# Trusted development pushes only. Never execute pull_request code on this private runner.
+on:
+  push:
+    branches: [linux-builds-v1]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-export:
+    runs-on: [self-hosted, Linux, X64, private-builder, el9, maplibre-ghbuilder-03]
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - target: rl9
+            base_image: docker.io/rockylinux/rockylinux:9.8
+            containerfile: spikes/linux-builds-v1/Containerfile.el
+            os_id: rocky
+            major: '9'
+          - target: rl10
+            base_image: docker.io/rockylinux/rockylinux:10.2
+            containerfile: spikes/linux-builds-v1/Containerfile.el
+            os_id: rocky
+            major: '10'
+          - target: deb12
+            base_image: docker.io/library/debian:12
+            containerfile: spikes/linux-builds-v1/Containerfile.deb
+            os_id: debian
+            major: '12'
+          - target: deb13
+            base_image: docker.io/library/debian:13
+            containerfile: spikes/linux-builds-v1/Containerfile.deb
+            os_id: debian
+            major: '13'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Builder preflight
+        run: |
+          df -h . /tmp
+          podman info --format '{{.Store.GraphRoot}}'
+          podman system df
+      - name: Compile ${{ matrix.target }} addon (ABI 127, 131, 137)
+        run: |
+          podman build --format docker --pull=missing --target builder \
+            --build-arg BASE_IMAGE=${{ matrix.base_image }} \
+            --build-arg BUILD_JOBS=4 \
+            --file ${{ matrix.containerfile }} \
+            --tag "localhost/maplibre-addon:${{ matrix.target }}-${GITHUB_SHA}" .
+      - name: Verify offline ABI selection fixture
+        run: |
+          podman run --rm "localhost/maplibre-addon:${{ matrix.target }}-${GITHUB_SHA}" \
+            bash -ec 'for mode in global explicit uncapped filtered; do
+              cmake -G Ninja -S /src/platform/node/tests/node_abi_bounds \
+                -B "/tmp/abi-${mode}" \
+                -DMODULE_PATH=/src/platform/node/cmake/module.cmake \
+                -DBOUND_MODE="$mode" >/dev/null
+              printf "%s passed\n" "$mode"
+            done'
+      - name: Prepare ${{ matrix.target }} test image
+        run: |
+          podman build --format docker --pull=missing --target test \
+            --build-arg BASE_IMAGE=${{ matrix.base_image }} \
+            --build-arg BUILD_JOBS=4 \
+            --file ${{ matrix.containerfile }} \
+            --tag "localhost/maplibre-addon-test:${{ matrix.target }}-${GITHUB_SHA}" .
+      - name: Matching-runtime linkage, load and render (all ABIs)
+        run: |
+          for abi in 127 131 137; do
+            podman run --rm "localhost/maplibre-addon-test:${{ matrix.target }}-${GITHUB_SHA}" \
+              bash /src/spikes/linux-builds-v1/test-in-container.sh \
+              '${{ matrix.os_id }}' '${{ matrix.major }}' "$abi" smoke
+          done
+      - name: Full Node suite under all three matching runtimes
+        run: |
+          for abi in 127 131 137; do
+            podman run --rm "localhost/maplibre-addon-test:${{ matrix.target }}-${GITHUB_SHA}" \
+              bash /src/spikes/linux-builds-v1/test-in-container.sh \
+              '${{ matrix.os_id }}' '${{ matrix.major }}' "$abi" full
+          done
+      - name: Export checksummed ${{ matrix.target }} addon bundle
+        id: export
+        env:
+          BASE_IMAGE: ${{ matrix.base_image }}
+        run: bash spikes/linux-builds-v1/export-addons.sh '${{ matrix.target }}'
+      - name: Upload ${{ matrix.target }} addon bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: maplibre-node-${{ steps.export.outputs.build_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
