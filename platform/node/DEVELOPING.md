@@ -23,9 +23,10 @@ brew install \
   libuv
 ```
 
-#### Linux (Ubuntu)
+#### Linux (Debian and Ubuntu)
 
 ```bash
+sudo apt-get update
 sudo apt-get install -y \
   build-essential \
   clang \
@@ -38,11 +39,36 @@ sudo apt-get install -y \
   libuv1-dev \
   libpng-dev \
   libicu-dev \
-  libjpeg-turbo8-dev \
+  libjpeg-dev \
   libwebp-dev \
+  libx11-dev \
+  libgl-dev \
   xvfb
-/usr/sbin/update-ccache-symlinks
+if [ -x /usr/sbin/update-ccache-symlinks ]; then
+  sudo /usr/sbin/update-ccache-symlinks
+fi
 ```
+
+`libjpeg-dev` is the distribution's development-package name; the underlying JPEG
+implementation can vary. Package names for other Linux families are not interchangeable.
+
+#### Linux (Rocky Linux 9 and 10)
+
+Enable Rocky's CRB development repository before installing build dependencies:
+
+```bash
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --set-enabled crb
+sudo dnf install -y \
+  clang cmake gcc gcc-c++ git ninja-build pkgconf-pkg-config \
+  libcurl-devel libicu-devel libjpeg-turbo-devel libpng-devel \
+  libuv-devel libwebp-devel libX11-devel mesa-libGL-devel
+```
+
+Other Enterprise Linux derivatives may name or enable their development repositories
+differently; check their package sources rather than assuming the Rocky commands apply.
+Install a headless display runner separately when running the Node tests; it is not
+required to compile the addon.
 
 ### Compiling
 
@@ -56,9 +82,19 @@ cmake . -B build -G Ninja -DMLN_WITH_NODE=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccach
 
 #### Linux
 
+For a server-side Node addon build without GLFW, use the existing Linux Node preset.
+It selects `clang`/`clang++` (included in the package lists above) without
+hard-coding a compiler version; the launcher override allows building without
+`ccache` if that optional tool is not installed:
+
 ```bash
-cmake . -B build -G Ninja -DMLN_WITH_NODE=ON -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc-12 -DCMAKE_CXX_COMPILER=g++-12
+cmake --preset linux-opengl-node -DMLN_WITH_GLFW=OFF -DCMAKE_CXX_COMPILER_LAUNCHER=
 ```
+
+Keep `MLN_WITH_GLFW` enabled if building the GLFW example targets. To use `ccache`,
+omit the empty launcher override. On all Linux distributions, CMake still requires
+the development libraries listed above; this option does not change the JPEG, ICU,
+or OpenGL dependencies of the addon.
 
 ### Building
 
