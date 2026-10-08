@@ -1,5 +1,6 @@
-# Debian-family build recipe: override BASE_IMAGE for derivative source builds.
-ARG BASE_IMAGE=docker.io/library/debian:12
+# APT-family build recipe for Debian and Ubuntu reference images.
+# Override BASE_IMAGE for a derivative source build after enabling its dev repos.
+ARG BASE_IMAGE=docker.io/library/debian:13
 ARG BUILD_JOBS=4
 FROM ${BASE_IMAGE} AS builder
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

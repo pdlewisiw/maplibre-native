@@ -2,13 +2,13 @@
 set -euo pipefail
 
 expected_id="${1:?OS ID required}"
-expected_major="${2:?OS major required}"
+expected_version="${2:?OS release required}"
 abi="${3:?Node ABI required}"
 stage="${4:?smoke or full required}"
 [[ "$abi" =~ ^(127|131|137)$ ]] || { printf 'Unsupported ABI: %s\n' "$abi" >&2; exit 2; }
 source /etc/os-release
-[[ "$ID" == "$expected_id" && ( "$VERSION_ID" == "$expected_major" || "$VERSION_ID" == "$expected_major".* ) ]] || {
-    printf 'Expected %s %s, got %s (%s)\n' "$expected_id" "$expected_major" "$PRETTY_NAME" "$VERSION_ID" >&2
+[[ "$ID" == "$expected_id" && ( "$VERSION_ID" == "$expected_version" || "$VERSION_ID" == "$expected_version".* ) ]] || {
+    printf 'Expected %s %s, got %s (%s)\n' "$expected_id" "$expected_version" "$PRETTY_NAME" "$VERSION_ID" >&2
     exit 1
 }
 export PATH="/opt/node-v${abi}/bin:$PATH"

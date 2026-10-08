@@ -4,39 +4,43 @@ name: Linux Node addon builds v1
 on:
   push:
     branches: [linux-builds-v1]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Build and test one OS, or all five
+        required: true
+        default: all
+        type: choice
+        options: [all, el9, el10, deb13, ubuntu2404, ubuntu2604]
 
 permissions:
   contents: read
 
 jobs:
+  select-target:
+    if: github.ref == 'refs/heads/linux-builds-v1'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select trusted matrix rows
+        id: select
+        env:
+          TARGET: ${{ inputs.target || 'all' }}
+        run: |
+          selected="$(python3 spikes/linux-builds-v1/select-matrix.py "$TARGET")"
+          printf 'matrix=%s\n' "$selected" >> "$GITHUB_OUTPUT"
   build-test-export:
+    needs: select-target
     runs-on: [self-hosted, Linux, X64, private-builder, el9, maplibre-ghbuilder-03]
     timeout-minutes: 240
     strategy:
       fail-fast: false
       max-parallel: 1
-      matrix:
-        include:
-          - target: rl9
-            base_image: docker.io/rockylinux/rockylinux:9.8
-            containerfile: spikes/linux-builds-v1/Containerfile.el
-            os_id: rocky
-            major: '9'
-          - target: rl10
-            base_image: docker.io/rockylinux/rockylinux:10.2
-            containerfile: spikes/linux-builds-v1/Containerfile.el
-            os_id: rocky
-            major: '10'
-          - target: deb12
-            base_image: docker.io/library/debian:12
-            containerfile: spikes/linux-builds-v1/Containerfile.deb
-            os_id: debian
-            major: '12'
-          - target: deb13
-            base_image: docker.io/library/debian:13
-            containerfile: spikes/linux-builds-v1/Containerfile.deb
-            os_id: debian
-            major: '13'
+      matrix: ${{ fromJSON(needs.select-target.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,19 +80,21 @@ jobs:
           for abi in 127 131 137; do
             podman run --rm "localhost/maplibre-addon-test:${{ matrix.target }}-${GITHUB_SHA}" \
               bash /src/spikes/linux-builds-v1/test-in-container.sh \
-              '${{ matrix.os_id }}' '${{ matrix.major }}' "$abi" smoke
+              '${{ matrix.os_id }}' '${{ matrix.version }}' "$abi" smoke
           done
       - name: Full Node suite under all three matching runtimes
         run: |
           for abi in 127 131 137; do
             podman run --rm "localhost/maplibre-addon-test:${{ matrix.target }}-${GITHUB_SHA}" \
               bash /src/spikes/linux-builds-v1/test-in-container.sh \
-              '${{ matrix.os_id }}' '${{ matrix.major }}' "$abi" full
+              '${{ matrix.os_id }}' '${{ matrix.version }}' "$abi" full
           done
       - name: Export checksummed ${{ matrix.target }} addon bundle
         id: export
         env:
           BASE_IMAGE: ${{ matrix.base_image }}
+          EXPECTED_OS_ID: ${{ matrix.os_id }}
+          EXPECTED_OS_VERSION: ${{ matrix.version }}
         run: bash spikes/linux-builds-v1/export-addons.sh '${{ matrix.target }}'
       - name: Upload ${{ matrix.target }} addon bundle
         uses: actions/upload-artifact@v4
