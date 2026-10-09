@@ -77,10 +77,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runs-on: ubuntu-24.04
-            arch: x86_64
-          - runs-on: ubuntu-24.04-arm
-            arch: arm64
           - runs-on: macos-15-intel
             arch: x86_64
           - runs-on: macos-15
@@ -313,3 +309,123 @@ jobs:
         working-directory: platform/node
         run: |
           npm pack  --dry-run
+
+  test_linux:
+    name: Linux (${{ matrix.distro }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runs-on }}
+    container:
+      image: ${{ matrix.container }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - distro: ubuntu2404
+            distribution: ubuntu
+            container: ubuntu:24.04
+            runs-on: ubuntu-24.04
+            arch: x86_64
+          - distro: ubuntu2404
+            distribution: ubuntu
+            container: ubuntu:24.04
+            runs-on: ubuntu-24.04-arm
+            arch: arm64
+          - distro: ubuntu2604
+            distribution: ubuntu
+            container: ubuntu:26.04
+            runs-on: ubuntu-24.04
+            arch: x86_64
+          - distro: ubuntu2604
+            distribution: ubuntu
+            container: ubuntu:26.04
+            runs-on: ubuntu-24.04-arm
+            arch: arm64
+          - distro: deb13
+            distribution: debian
+            container: debian:13
+            runs-on: ubuntu-24.04
+            arch: x86_64
+          - distro: deb13
+            distribution: debian
+            container: debian:13
+            runs-on: ubuntu-24.04-arm
+            arch: arm64
+          - distro: el9
+            distribution: el
+            container: quay.io/rockylinux/rockylinux:9
+            runs-on: ubuntu-24.04
+            arch: x86_64
+          - distro: el9
+            distribution: el
+            container: quay.io/rockylinux/rockylinux:9
+            runs-on: ubuntu-24.04-arm
+            arch: arm64
+          - distro: el10
+            distribution: el
+            container: quay.io/rockylinux/rockylinux:10
+            runs-on: ubuntu-24.04
+            arch: x86_64
+          - distro: el10
+            distribution: el
+            container: quay.io/rockylinux/rockylinux:10
+            runs-on: ubuntu-24.04-arm
+            arch: arm64
+    defaults:
+      run:
+        shell: bash
+    env:
+      BUILDTYPE: Release
+    steps:
+      - name: Install Linux dependencies
+        run: |
+          if [[ "${{ matrix.distribution }}" == el ]]; then
+            dnf -y install dnf-plugins-core epel-release
+            dnf config-manager --set-enabled crb
+            dnf -y install \
+              ca-certificates ccache clang cmake curl gcc gcc-c++ git \
+              glfw-devel libcurl-devel libjpeg-turbo-devel libpng-devel \
+              libuv-devel libwebp-devel libX11-devel mesa-libGL-devel \
+              ninja-build pkgconf-pkg-config tar weston xwayland-run
+          else
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y --no-install-recommends \
+              ca-certificates ccache clang cmake curl g++ git \
+              libcurl4-openssl-dev libgl1-mesa-dev libglfw3-dev \
+              libjpeg-dev libpng-dev libuv1-dev libwebp-dev \
+              libx11-dev ninja-build pkg-config tar weston xwayland-run
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Use Node.js from nvmrc
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: platform/node/.nvmrc
+
+      - name: npm ci
+        working-directory: platform/node
+        run: npm ci --ignore-scripts
+
+      - name: Configure maplibre-native
+        run: cmake --preset linux-opengl-node -DCMAKE_BUILD_TYPE=${{ env.BUILDTYPE }}
+
+      - name: Build maplibre-native
+        run: cmake --build build -j 2
+
+      - name: Test Node.js addon
+        working-directory: platform/node
+        run: |
+          export XDG_RUNTIME_DIR="$(mktemp -d)"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          trap 'rm -rf "$XDG_RUNTIME_DIR"' EXIT
+          xwfb-run -c weston -- npm test
+
+      - name: Pack
+        working-directory: platform/node
+        run: npm pack --dry-run
