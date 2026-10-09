@@ -383,8 +383,8 @@ jobs:
             dnf -y install dnf-plugins-core epel-release
             dnf config-manager --set-enabled crb
             dnf -y install \
-              ca-certificates ccache clang cmake curl gcc gcc-c++ git \
-              glfw-devel libcurl-devel libjpeg-turbo-devel libpng-devel \
+              ca-certificates ccache clang cmake gcc gcc-c++ git \
+              glfw-devel libcurl-devel libicu-devel libjpeg-turbo-devel libpng-devel \
               libuv-devel libwebp-devel libX11-devel mesa-libGL-devel \
               ninja-build pkgconf-pkg-config tar weston xwayland-run
           else
@@ -392,7 +392,7 @@ jobs:
             apt-get update
             apt-get install -y --no-install-recommends \
               ca-certificates ccache clang cmake curl g++ git \
-              libcurl4-openssl-dev libgl1-mesa-dev libglfw3-dev \
+              libcurl4-openssl-dev libgl1-mesa-dev libglfw3-dev libicu-dev \
               libjpeg-dev libpng-dev libuv1-dev libwebp-dev \
               libx11-dev ninja-build pkg-config tar weston xwayland-run
           fi
