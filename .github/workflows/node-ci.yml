@@ -373,9 +373,10 @@ jobs:
             arch: arm64
     defaults:
       run:
-        shell: bash
+        shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
     env:
       BUILDTYPE: Release
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     steps:
       - name: Install Linux dependencies
         run: |
@@ -410,7 +411,10 @@ jobs:
 
       - name: npm ci
         working-directory: platform/node
-        run: npm ci --ignore-scripts
+        run: |
+          printf 'PATH=%s\n' "$PATH"
+          command -v bash node npm cmake
+          npm ci --ignore-scripts
 
       - name: Configure maplibre-native
         run: cmake --preset linux-opengl-node -DCMAKE_BUILD_TYPE=${{ env.BUILDTYPE }}
