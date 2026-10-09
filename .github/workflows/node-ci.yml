@@ -386,7 +386,7 @@ jobs:
               ca-certificates ccache clang cmake gcc gcc-c++ git \
               glfw-devel libcurl-devel libicu-devel libjpeg-turbo-devel libpng-devel \
               libuv-devel libwebp-devel libX11-devel mesa-libGL-devel \
-              ninja-build pkgconf-pkg-config tar weston xwayland-run
+              ninja-build pkgconf-pkg-config tar weston xorg-x11-xauth xwayland-run
           else
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
@@ -394,7 +394,7 @@ jobs:
               ca-certificates ccache clang cmake curl g++ git \
               libcurl4-openssl-dev libgl1-mesa-dev libglfw3-dev libicu-dev \
               libjpeg-dev libpng-dev libuv1-dev libwebp-dev \
-              libx11-dev ninja-build pkg-config tar weston xwayland-run
+              libx11-dev ninja-build pkg-config tar weston xauth xwayland-run
           fi
 
       - name: Checkout
@@ -424,7 +424,7 @@ jobs:
           export XDG_RUNTIME_DIR="$(mktemp -d)"
           chmod 700 "$XDG_RUNTIME_DIR"
           trap 'rm -rf "$XDG_RUNTIME_DIR"' EXIT
-          xwfb-run -c weston -- npm test
+          xwfb-run -e /dev/stderr -c weston -- npm test
 
       - name: Pack
         working-directory: platform/node
